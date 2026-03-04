@@ -1,17 +1,53 @@
-name: Simple CI
+name: CI/CD (Build → Test → Deploy)
 
 on:
   push:
     branches: [ "main" ]
-  workflow_dispatch:
+  pull_request:
+    branches: [ "main" ]
+  workflow_dispatch: {}
 
 jobs:
   build:
-    runs-on: ubuntu-latest
-
+    name: Build
+    runs-on: ubuntu-latest   # Auto-allocated GitHub-hosted runner
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install deps
+        run: |
+          python -m pip install --upgrade pip
+          if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+      - name: Package artifact
+        run: |
+          mkdir -p dist
+          zip -r dist/app.zip app.py requirements.txt 2>/dev/null || true
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: app
+          path: dist/app.zip
 
-      - name: Run Python Script
-        run: python app.py
+  test:
+    name: Test
+    runs-on: ubuntu-latest   # Auto runner again
+    needs: build             # This creates the Build → Test link in the graph
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: app
+          path: ./artifact
+      - name: Run simple test
+        run: |
+          python - << 'PY'
+          print("Dummy test passed: artifact exists =", __import__('os').path.exists('artifact/app.zip'))
+          PY
+
+  deploy:
+    name: Deploy (Dummy)
+    runs-on: ubuntu-latest   # Auto runner again
+    needs: test              # Build → Test → Deploy chain
+    steps:
+      - run: echo "Pretend deploying artifact to Dev… ✅"
