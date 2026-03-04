@@ -9,7 +9,7 @@ on:
 
 jobs:
   build:
-    name: Build
+    name: Niranjan
     runs-on: ubuntu-latest   # Auto-allocated GitHub-hosted runner
     steps:
       - uses: actions/checkout@v4
